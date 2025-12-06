@@ -1,0 +1,7 @@
+SPECS.md
+.kiroignore
+node_modules
+.husky/
+commitlint.config.js
+package.json
+package-lock.json
