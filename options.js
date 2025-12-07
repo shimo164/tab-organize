@@ -1,8 +1,14 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  const settings = await chrome.storage.local.get({ ignoreUrls: [], removeUrls: [], sortOrder: 'domain' });
+  const settings = await chrome.storage.local.get({ 
+    ignoreUrls: [], 
+    removeUrls: [], 
+    sortOrder: 'domain',
+    removeDuplicates: true
+  });
   document.getElementById('ignoreUrls').value = settings.ignoreUrls.join('\n');
   document.getElementById('removeUrls').value = settings.removeUrls.join('\n');
   document.getElementById('sortOrder').value = settings.sortOrder;
+  document.getElementById('removeDuplicates').checked = settings.removeDuplicates;
 });
 
 document.getElementById('save').addEventListener('click', async () => {
@@ -17,8 +23,9 @@ document.getElementById('save').addEventListener('click', async () => {
     .filter(line => line.length > 0);
   
   const sortOrder = document.getElementById('sortOrder').value;
+  const removeDuplicates = document.getElementById('removeDuplicates').checked;
 
-  await chrome.storage.local.set({ ignoreUrls, removeUrls, sortOrder });
+  await chrome.storage.local.set({ ignoreUrls, removeUrls, sortOrder, removeDuplicates });
 
   const status = document.getElementById('status');
   status.textContent = 'Settings saved!';

@@ -1,6 +1,11 @@
 chrome.action.onClicked.addListener(async (tab) => {
   const currentWindow = tab.windowId;
-  const settings = await chrome.storage.local.get({ ignoreUrls: [], removeUrls: [], sortOrder: 'domain' });
+  const settings = await chrome.storage.local.get({ 
+    ignoreUrls: [], 
+    removeUrls: [], 
+    sortOrder: 'domain',
+    removeDuplicates: true
+  });
   const ignorePatterns = settings.ignoreUrls.map(pattern => 
     new RegExp('^' + pattern.replace(/\*/g, '.*').replace(/\?/g, '.') + '$')
   );
@@ -72,5 +77,23 @@ chrome.action.onClicked.addListener(async (tab) => {
   const sortedTabs = [...pinnedTabs, ...unpinnedTabs];
   for (let i = 0; i < sortedTabs.length; i++) {
     await chrome.tabs.move(sortedTabs[i].id, { index: i });
+  }
+
+  if (settings.removeDuplicates) {
+    const allCurrentTabs = await chrome.tabs.query({ windowId: currentWindow });
+    const seenUrls = new Set();
+    const duplicatesToRemove = [];
+
+    for (const t of allCurrentTabs) {
+      if (seenUrls.has(t.url)) {
+        duplicatesToRemove.push(t.id);
+      } else {
+        seenUrls.add(t.url);
+      }
+    }
+
+    if (duplicatesToRemove.length > 0) {
+      await chrome.tabs.remove(duplicatesToRemove);
+    }
   }
 });
