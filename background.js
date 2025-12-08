@@ -16,9 +16,16 @@ chrome.action.onClicked.addListener(async (tab) => {
   const allWindows = await chrome.windows.getAll({ populate: true, windowTypes: ['normal'] });
   const tabsToMove = [];
   const tabsToRemove = [];
+  const windowsWithIgnoredTabs = new Set();
 
   for (const window of allWindows) {
     for (const t of window.tabs) {
+      // Remove empty tabs
+      if (t.url === 'chrome://newtab/' || t.url === 'about:blank') {
+        tabsToRemove.push(t.id);
+        continue;
+      }
+
       const shouldRemove = removePatterns.some(pattern => pattern.test(t.url));
       if (shouldRemove) {
         tabsToRemove.push(t.id);
@@ -28,7 +35,9 @@ chrome.action.onClicked.addListener(async (tab) => {
       if (window.id === currentWindow) continue;
       
       const shouldIgnore = ignorePatterns.some(pattern => pattern.test(t.url));
-      if (!shouldIgnore) {
+      if (shouldIgnore) {
+        windowsWithIgnoredTabs.add(window.id);
+      } else {
         tabsToMove.push(t);
       }
     }
@@ -49,12 +58,14 @@ chrome.action.onClicked.addListener(async (tab) => {
     }
 
     for (const window of allWindows) {
-      if (window.id !== currentWindow) {
-        const remainingTabs = await chrome.tabs.query({ windowId: window.id });
-        if (remainingTabs.length === 0 || remainingTabs.every(t => 
-          ignorePatterns.some(pattern => pattern.test(t.url))
-        )) {
-          await chrome.windows.remove(window.id);
+      if (window.id !== currentWindow && !windowsWithIgnoredTabs.has(window.id)) {
+        try {
+          const remainingTabs = await chrome.tabs.query({ windowId: window.id });
+          if (remainingTabs.length === 0) {
+            await chrome.windows.remove(window.id);
+          }
+        } catch (e) {
+          // Window might already be closed
         }
       }
     }
