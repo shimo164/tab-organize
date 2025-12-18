@@ -1,3 +1,42 @@
+let previousTabId = {};
+let currentTabId = {};
+
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  const settings = await chrome.storage.local.get({ switchToPreviousTab: true });
+  if (!settings.switchToPreviousTab) return;
+
+  const windowId = activeInfo.windowId;
+  
+  // Store the current tab as previous before updating to new active tab
+  if (currentTabId[windowId] && currentTabId[windowId] !== activeInfo.tabId) {
+    previousTabId[windowId] = currentTabId[windowId];
+  }
+  
+  currentTabId[windowId] = activeInfo.tabId;
+});
+
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === 'switch-to-previous-tab') {
+    const settings = await chrome.storage.local.get({ switchToPreviousTab: true });
+    if (!settings.switchToPreviousTab) return;
+
+    const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const windowId = currentTab.windowId;
+    const prevTabId = previousTabId[windowId];
+
+    if (prevTabId && prevTabId !== currentTab.id) {
+      try {
+        // Check if the previous tab still exists
+        await chrome.tabs.get(prevTabId);
+        await chrome.tabs.update(prevTabId, { active: true });
+      } catch (e) {
+        // Tab no longer exists, clear the stored ID
+        delete previousTabId[windowId];
+      }
+    }
+  }
+});
+
 chrome.action.onClicked.addListener(async (tab) => {
   const currentWindow = tab.windowId;
   const settings = await chrome.storage.local.get({ 
